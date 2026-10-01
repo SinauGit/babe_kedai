@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tes RawBT ESC/POS</title>
+<style>
+    :root { --bg:#ffffff; --fg:#1a1a1a; --muted:#5c5c5c; --line:#d4d4d4; --accent:#0b5cad; --accent-fg:#ffffff; --box:#f4f6f8; }
+    @media (prefers-color-scheme: dark) {
+        :root { --bg:#16181b; --fg:#ececec; --muted:#a0a4a8; --line:#33373c; --accent:#5aa2ee; --accent-fg:#0b1a2b; --box:#1f2226; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; max-width:640px; }
+    h1 { font-size:1.25rem; margin:0 0 4px; }
+    p.lead { margin:0 0 16px; color:var(--muted); }
+    label { display:block; margin:12px 0 4px; font-weight:600; }
+    select, input[type=number] { width:100%; padding:12px; font-size:1rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); }
+    .row { display:flex; gap:12px; margin-top:16px; }
+    button { flex:1; padding:14px 10px; font-size:1rem; font-weight:600; border:0; border-radius:6px; background:var(--accent); color:var(--accent-fg); }
+    button.alt { background:transparent; color:var(--accent); border:2px solid var(--accent); }
+    button:focus-visible, select:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+    #env, #log { margin-top:16px; padding:12px; background:var(--box); border-radius:6px; font:13px/1.5 ui-monospace, monospace; white-space:pre-wrap; word-break:break-all; }
+    #log:empty::before { content:"Log akan muncul di sini."; color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>Tes cetak ESC/POS ke RawBT</h1>
+<p class="lead">Mengirim struk contoh langsung ke RawBT, tanpa dialog print Chrome. Jalankan dari Chrome di MatePad.</p>
+
+<label for="method">Metode kirim</label>
+<select id="method">
+    <option value="intent">intent: (disarankan untuk Chrome)</option>
+    <option value="rawbt">rawbt:base64 (tautan langsung)</option>
+</select>
+
+<label for="cut">Perintah potong</label>
+<select id="cut">
+    <option value="feedcut">GS V 66 0 (feed lalu potong)</option>
+    <option value="partial">GS V 1 (potong sebagian)</option>
+    <option value="lfpartial">4 baris kosong + GS V 1</option>
+    <option value="full">GS V 0 (potong penuh)</option>
+</select>
+
+<label for="copies">Jumlah salinan</label>
+<input id="copies" type="number" min="1" max="10" value="3" inputmode="numeric">
+
+<div class="row">
+    <button id="one" type="button">Cetak 1 salinan</button>
+    <button id="many" type="button" class="alt">Cetak N salinan</button>
+</div>
+
+<div id="env"></div>
+<div id="log"></div>
+
+<script>
+(function () {
+    "use strict";
+    var W = 32;
+    var ESC = 0x1b, GS = 0x1d, LF = 0x0a;
+    var PACKAGE = "ru.a402d.rawbtprinter";
+    var enc = new TextEncoder();
+    var logEl = document.getElementById("log");
+    var hiddenAt = null;
+    var tapAt = null;
+
+    function log(msg) {
+        var t = new Date().toLocaleTimeString("id-ID");
+        logEl.textContent = t + "  " + msg + "\n" + logEl.textContent;
+    }
+
+    document.getElementById("env").textContent =
+        "Alamat: " + location.origin + "\n" +
+        "Browser: " + navigator.userAgent;
+
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden && tapAt !== null) {
+            hiddenAt = performance.now();
+            log("Halaman berpindah ke latar belakang " + Math.round(hiddenAt - tapAt) + " ms setelah tap (intent kemungkinan terkirim).");
+        }
+    });
+
+    function concat(parts) {
+        var total = 0, i;
+        for (i = 0; i < parts.length; i++) { total += parts[i].length; }
+        var out = new Uint8Array(total), pos = 0;
+        for (i = 0; i < parts.length; i++) { out.set(parts[i], pos); pos += parts[i].length; }
+        return out;
+    }
+    function raw() { return new Uint8Array(Array.prototype.slice.call(arguments)); }
+    function txt(s) { return enc.encode(s + "\n"); }
+    function lr(left, right) {
+        var gap = Math.max(1, W - left.length - right.length);
+        return left + new Array(gap + 1).join(" ") + right;
+    }
+    function dashes() { return txt(new Array(W + 1).join("-")); }
+
+    function cutBytes(mode) {
+        if (mode === "feedcut") { return raw(GS, 0x56, 0x42, 0x00); }
+        if (mode === "partial") { return raw(GS, 0x56, 0x01); }
+        if (mode === "lfpartial") { return raw(LF, LF, LF, LF, GS, 0x56, 0x01); }
+        return raw(GS, 0x56, 0x00);
+    }
+
+    function receipt(index, total, cutMode) {
+        var now = new Date().toLocaleString("id-ID");
+        return concat([
+            raw(ESC, 0x40),
+            raw(ESC, 0x61, 0x01), raw(ESC, 0x45, 0x01), txt("KEDAI LIMAWIRA"), raw(ESC, 0x45, 0x00),
+            txt("TES CETAK ESC/POS"),
+            raw(ESC, 0x61, 0x00),
+            dashes(),
+            txt("Salinan " + index + " dari " + total),
+            txt(now),
+            dashes(),
+            txt("Nasi Goreng"),
+            txt(lr("  2 x 25.000", "50.000")),
+            txt("Es Teh"),
+            txt(lr("  1 x 8.000", "8.000")),
+            dashes(),
+            txt(lr("TOTAL", "58.000")),
+            txt(lr("Tunai", "60.000")),
+            txt(lr("Kembali", "2.000")),
+            dashes(),
+            raw(ESC, 0x61, 0x01), txt("Terima kasih!"), raw(ESC, 0x61, 0x00),
+            raw(LF, LF),
+            cutBytes(cutMode)
+        ]);
+    }
+
+    function toBase64(bytes) {
+        var bin = "", chunk = 0x8000;
+        for (var i = 0; i < bytes.length; i += chunk) {
+            bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        return btoa(bin);
+    }
+
+    function send(copies) {
+        var method = document.getElementById("method").value;
+        var cutMode = document.getElementById("cut").value;
+        var parts = [], i;
+        for (i = 1; i <= copies; i++) { parts.push(receipt(i, copies, cutMode)); }
+        var data = concat(parts);
+        var b64 = toBase64(data);
+        var url = method === "intent"
+            ? "intent:base64," + b64 + "#Intent;scheme=rawbt;package=" + PACKAGE + ";end;"
+            : "rawbt:base64," + b64;
+        hiddenAt = null;
+        tapAt = performance.now();
+        log("Kirim: " + copies + " salinan, " + data.length + " byte, metode " + method + ", panjang URL " + url.length + ".");
+        window.location.href = url;
+        setTimeout(function () {
+            if (hiddenAt === null) {
+                log("Tidak ada perpindahan aplikasi dalam 2 detik. Cek apakah printer tetap mencetak; bila tidak, intent mungkin diblokir.");
+            }
+        }, 2000);
+    }
+
+    document.getElementById("one").addEventListener("click", function () { send(1); });
+    document.getElementById("many").addEventListener("click", function () {
+        var n = parseInt(document.getElementById("copies").value, 10) || 1;
+        send(Math.min(Math.max(n, 1), 10));
+    });
+})();
+</script>
+</body>
+</html>
