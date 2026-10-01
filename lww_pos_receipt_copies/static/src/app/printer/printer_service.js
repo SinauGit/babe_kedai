@@ -9,6 +9,7 @@ patch(PrinterService.prototype, {
         }
         if (!this.device) {
             const wrapper = document.createElement("div");
+            wrapper.className = "lww-receipt-copies";
             for (let i = 0; i < copies; i++) {
                 const copy = el.cloneNode(true);
                 if (i < copies - 1) {
