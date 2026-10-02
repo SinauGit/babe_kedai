@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="lww_pos_unified_note.ControlButtons" t-inherit="point_of_sale.ControlButtons" t-inherit-mode="extension">
+        <xpath expr="//OrderlineNoteButton[@icon]" position="replace"/>
+    </t>
+</templates>
