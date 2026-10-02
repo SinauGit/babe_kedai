@@ -1,6 +1,7 @@
 import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { patch } from "@web/core/utils/patch";
 import { buildReceiptBytes, sendToRawBT } from "@lww_pos_receipt_copies/app/rawbt/escpos";
+import { getLogoBytes } from "@lww_pos_receipt_copies/app/rawbt/logo";
 
 const isAndroid = () => /Android/i.test(navigator.userAgent);
 
@@ -25,9 +26,11 @@ patch(PosStore.prototype, {
 
     async lwwPrintViaRawBT(order, copies) {
         const data = this.orderExportForPrinting(order);
+        const logo = await getLogoBytes(data.headerData?.company?.id);
         const bytes = buildReceiptBytes(data, {
             copies,
             formatCurrency: this.env.utils.formatCurrency,
+            logo,
         });
         sendToRawBT(bytes);
         order.nb_print += 1;

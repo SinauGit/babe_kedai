@@ -1,7 +1,6 @@
 const W = 32;
 const ESC = 0x1b;
 const GS = 0x1d;
-const LF = 0x0a;
 const CUT = [GS, 0x56, 0x42, 0x00];
 const RAWBT_PACKAGE = "ru.a402d.rawbtprinter";
 
@@ -109,26 +108,13 @@ class EscPos {
     }
 }
 
-function buildOneReceipt(data, formatCurrency) {
+function buildOneReceipt(data, formatCurrency, logo) {
     const p = new EscPos();
     const header = data.headerData || {};
-    const company = header.company || {};
     p.raw(ESC, 0x40);
 
-    if (company.name) {
-        p.bold(true).centered(company.name).bold(false);
-    }
-    if (company.phone) {
-        p.centered("Tel:" + company.phone);
-    }
-    if (company.vat) {
-        p.centered((company.country_id?.vat_label || "Tax ID") + ":" + company.vat);
-    }
-    if (company.email) {
-        p.centered(company.email);
-    }
-    if (company.website) {
-        p.centered(company.website);
+    if (logo) {
+        p.parts.push(logo);
     }
     if (header.header) {
         p.centered(header.header);
@@ -141,7 +127,7 @@ function buildOneReceipt(data, formatCurrency) {
         p.centeredBig(String(header.trackingNumber));
     }
     if (header.generalNote) {
-        wrap(header.generalNote).forEach((line) => p.text(line));
+        p.centered("Table: " + header.generalNote);
     }
     p.text();
 
@@ -202,13 +188,12 @@ function buildOneReceipt(data, formatCurrency) {
     if (data.date) {
         p.centered(data.date);
     }
-    p.raw(LF, LF);
     p.raw(...CUT);
     return p.bytes();
 }
 
-export function buildReceiptBytes(data, { copies = 1, formatCurrency }) {
-    const one = buildOneReceipt(data, formatCurrency);
+export function buildReceiptBytes(data, { copies = 1, formatCurrency, logo = null }) {
+    const one = buildOneReceipt(data, formatCurrency, logo);
     return concat(Array.from({ length: Math.max(1, copies) }, () => one));
 }
 
