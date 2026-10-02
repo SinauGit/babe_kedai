@@ -95,8 +95,9 @@ class EscPos {
     centeredBig(text) {
         const value = ascii(text);
         const pad = Math.max(0, Math.floor((W - value.length * 2) / 2));
+        this.parts.push(encoder.encode(" ".repeat(pad)));
         this.raw(GS, 0x21, 0x11);
-        this.text(" ".repeat(pad) + value);
+        this.parts.push(encoder.encode(value + "\n"));
         return this.raw(GS, 0x21, 0x00);
     }
     leftRight(left, right) {
