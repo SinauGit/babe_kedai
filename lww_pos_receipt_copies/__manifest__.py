@@ -1,6 +1,6 @@
 {
     "name": "LWW POS Receipt Copies",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Sales/Point of Sale",
     "summary": "Cetak struk pelanggan N salinan dalam satu klik",
     "depends": ["point_of_sale"],

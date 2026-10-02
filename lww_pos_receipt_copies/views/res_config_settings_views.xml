@@ -9,6 +9,9 @@
                 <setting id="lww_receipt_copies" string="Jumlah Salinan Struk" help="Jumlah salinan struk pelanggan yang dicetak setiap kali struk dicetak.">
                     <field name="pos_receipt_copies"/>
                 </setting>
+                <setting id="lww_receipt_rawbt" string="Cetak via RawBT (ESC/POS)" help="Khusus Android: kirim struk sebagai teks ESC/POS langsung ke aplikasi RawBT, dengan potong kertas di antara salinan. Tanpa logo.">
+                    <field name="pos_receipt_rawbt"/>
+                </setting>
             </xpath>
         </field>
     </record>
