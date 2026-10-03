@@ -27,10 +27,12 @@ patch(PosStore.prototype, {
     async lwwPrintViaRawBT(order, copies) {
         const data = this.orderExportForPrinting(order);
         const logo = await getLogoBytes(data.headerData?.company?.id);
+        const tableName = order.getTable?.() ? order.getName() : "";
         const bytes = buildReceiptBytes(data, {
             copies,
             formatCurrency: this.env.utils.formatCurrency,
             logo,
+            tableName,
         });
         sendToRawBT(bytes);
         order.nb_print += 1;

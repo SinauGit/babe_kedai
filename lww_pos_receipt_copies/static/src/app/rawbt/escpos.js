@@ -108,7 +108,7 @@ class EscPos {
     }
 }
 
-function buildOneReceipt(data, formatCurrency, logo) {
+function buildOneReceipt(data, formatCurrency, logo, tableName) {
     const p = new EscPos();
     const header = data.headerData || {};
     p.raw(ESC, 0x40);
@@ -126,8 +126,11 @@ function buildOneReceipt(data, formatCurrency, logo) {
     if (header.trackingNumber) {
         p.centeredBig(String(header.trackingNumber));
     }
-    if (header.generalNote) {
-        p.centered("Table: " + header.generalNote);
+    if (tableName) {
+        p.centered("Table: " + tableName);
+    }
+    if (data.generalNote) {
+        p.centered("Table: " + data.generalNote);
     }
     p.text();
 
@@ -192,8 +195,11 @@ function buildOneReceipt(data, formatCurrency, logo) {
     return p.bytes();
 }
 
-export function buildReceiptBytes(data, { copies = 1, formatCurrency, logo = null }) {
-    const one = buildOneReceipt(data, formatCurrency, logo);
+export function buildReceiptBytes(
+    data,
+    { copies = 1, formatCurrency, logo = null, tableName = "" }
+) {
+    const one = buildOneReceipt(data, formatCurrency, logo, tableName);
     return concat(Array.from({ length: Math.max(1, copies) }, () => one));
 }
 
